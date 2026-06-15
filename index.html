@@ -173,7 +173,8 @@ select option{background:var(--bg2);}
     <div class="form-grid">
       <input type="text" id="r-desc" placeholder="Ex: Salário, Freela..." class="full"/>
       <input type="number" id="r-val" placeholder="Valor (R$)"/>
-      <select id="r-tipo"><option value="fixo">Recorrente</option><option value="extra">Extra</option></select>
+      <select id="r-tipo" onchange="toggleRendaDate(this.value)"><option value="fixo">Recorrente</option><option value="extra">Extra</option></select>
+      <input type="date" id="r-date" class="full" style="display:none"/>
       <button class="btn success full" onclick="addRenda()">Adicionar renda</button>
     </div>
   </div>
@@ -251,7 +252,9 @@ const CATS=[
   {id:'outros',label:'Outros',color:'#64748b'},
 ];
 
-const DEFAULT_RENDAS=[{id:'r1',desc:'Renda principal',val:14200,tipo:'fixo'}];
+const DEFAULT_RENDAS=[
+  {id:'r1', desc:'Renda principal', val:14200, tipo:'fixo', date:''}
+];
 const DEFAULT_FIXAS=[
   {id:'f1',desc:'Colégio',val:1932.71,cat:'educacao'},
   {id:'f2',desc:'Condomínio',val:750,cat:'moradia'},
@@ -505,7 +508,12 @@ function renderVisao(){
   const mes=getMes();
   const gastosM=gastos.filter(g=>g.date.startsWith(mes));
   const fatAberta=getFaturaAberta(); const cartaoM=cartao.filter(c=>(c.fatura||c.date.slice(0,7))===fatAberta);
-  const totalRenda=rendas.reduce((s,r)=>s+r.val,0);
+  // Fixas: somam sempre | Extras: só se forem do mês atual
+  const totalRenda=rendas.reduce((s,r)=>{
+    if(r.tipo==='fixo') return s+r.val;
+    if(r.date&&r.date.slice(0,7)===mes) return s+r.val;
+    return s;
+  },0);
   const totalFixo=fixas.reduce((s,f)=>s+(f.val||0),0);
   const totalConta=gastosM.reduce((s,g)=>s+g.val,0);
   const totalCartaoM=cartaoM.reduce((s,c)=>s+c.val,0);
@@ -678,17 +686,78 @@ function delGasto(id){gastos=gastos.filter(g=>g.id!==id);saveLocal();syncSheet('
 
 // ── RENDAS ───────────────────────────────────────────────────
 function renderRendas(){
-  const total=rendas.reduce((s,r)=>s+r.val,0);
-  document.getElementById('rendas-list').innerHTML=rendas.length
-    ?rendas.map(r=>`<div class="item"><div class="dot" style="background:#22c55e"></div><div class="info"><div class="name">${r.desc}</div><div class="meta">${r.tipo==='fixo'?'Recorrente':'Extra'}</div></div><div class="amt green">${fmt(r.val)}</div><div class="item-actions"><button class="icon-btn" onclick="editRenda('${r.id}')">✏️</button><button class="icon-btn" onclick="delRenda('${r.id}')">🗑</button></div></div>`).join('')+`<div class="total-line">Total: ${fmt(total)}</div>`
-    :'<p class="empty">Nenhuma renda cadastrada</p>';
+  const mes=getMes();
+
+  // Rendas do mês atual: fixas sempre + extras do mês
+  const rendasMes=rendas.filter(r=>r.tipo==='fixo'||(r.date&&r.date.slice(0,7)===mes));
+  const totalMes=rendasMes.reduce((s,r)=>s+r.val,0);
+
+  // Histórico de extras por mês
+  const extrasHist=rendas.filter(r=>r.tipo==='extra');
+  const porMes={};
+  extrasHist.forEach(r=>{
+    const m=r.date?r.date.slice(0,7):mes;
+    if(!porMes[m])porMes[m]=[];
+    porMes[m].push(r);
+  });
+
+  // Monta HTML
+  let html=`<p class="section-title">Este mês — ${mesFmt(mes)}</p>`;
+  html+=`<div class="item-list">`;
+  html+=rendas.filter(r=>r.tipo==='fixo').map(r=>`
+    <div class="item">
+      <div class="dot" style="background:#22c55e"></div>
+      <div class="info"><div class="name">${r.desc}</div><div class="meta">Recorrente — todo mês</div></div>
+      <div class="amt green">${fmt(r.val)}</div>
+      <div class="item-actions">
+        <button class="icon-btn" onclick="editRenda('${r.id}')">✏️</button>
+        <button class="icon-btn" onclick="delRenda('${r.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+  html+=rendas.filter(r=>r.tipo==='extra'&&r.date&&r.date.slice(0,7)===mes).map(r=>`
+    <div class="item">
+      <div class="dot" style="background:#4ade80"></div>
+      <div class="info"><div class="name">${r.desc}</div><div class="meta">Extra · ${new Date(r.date+'T12:00:00').toLocaleDateString('pt-BR')}</div></div>
+      <div class="amt green">${fmt(r.val)}</div>
+      <div class="item-actions">
+        <button class="icon-btn" onclick="delRenda('${r.id}')">🗑</button>
+      </div>
+    </div>`).join('');
+  html+=`<div class="total-line">Total junho: ${fmt(totalMes)}</div></div>`;
+
+  // Histórico de meses anteriores
+  const mesesAnt=Object.keys(porMes).filter(m=>m<mes).sort((a,b)=>b.localeCompare(a));
+  if(mesesAnt.length){
+    html+=`<p class="section-title" style="margin-top:1rem">Histórico de extras</p>`;
+    mesesAnt.forEach(m=>{
+      const items=porMes[m];
+      const total=items.reduce((s,r)=>s+r.val,0);
+      html+=`<div style="margin-bottom:5px">
+        <div class="acc-header" onclick="toggleAcc(this)">
+          <span class="acc-label">${mesFmt(m)}</span>
+          <span class="acc-right"><span class="acc-total">${fmt(total)}</span><span class="acc-arrow">▼</span></span>
+        </div>
+        <div class="acc-body">
+          ${items.map(r=>`<div class="item">
+            <div class="dot" style="background:#4ade80"></div>
+            <div class="info"><div class="name">${r.desc}</div><div class="meta">${new Date(r.date+'T12:00:00').toLocaleDateString('pt-BR')}</div></div>
+            <div class="amt green">${fmt(r.val)}</div>
+            <div class="item-actions"><button class="icon-btn" onclick="delRenda('${r.id}')">🗑</button></div>
+          </div>`).join('')}
+        </div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('rendas-list').innerHTML=html;
 }
 function addRenda(){
   const desc=document.getElementById('r-desc').value.trim();
   const val=parseFloat(document.getElementById('r-val').value);
   const tipo=document.getElementById('r-tipo').value;
+  const date=document.getElementById('r-date').value||nowDate();
   if(!desc||isNaN(val)||val<=0){toast('Preencha os campos','err');return;}
-  const item={id:uid(),desc,val,tipo};
+  const item={id:uid(),desc,val,tipo,date:tipo==='extra'?date:''};
   rendas.push(item);saveLocal();renderRendas();syncSheet('addRenda',item);toast('Renda adicionada!');
   document.getElementById('r-desc').value='';document.getElementById('r-val').value='';
 }
@@ -836,6 +905,11 @@ function exportCSV(){
   const csv=rows.map(r=>r.join(';')).join('\n');
   const b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='financas_'+mes+'.csv';a.click();
+}
+
+function toggleRendaDate(tipo){
+  document.getElementById('r-date').style.display=tipo==='extra'?'block':'none';
+  if(tipo==='extra') document.getElementById('r-date').value=nowDate();
 }
 
 // ── CAIXINHA ─────────────────────────────────────────────────
