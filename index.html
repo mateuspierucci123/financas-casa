@@ -107,6 +107,7 @@ select option{background:var(--bg2);}
   <button class="tab" onclick="showTab('rendas')">Rendas</button>
   <button class="tab" onclick="showTab('fixas')">Fixas</button>
   <button class="tab" onclick="showTab('historico')">Histórico</button>
+  <button class="tab" onclick="showTab('caixinha')">🐷 Caixinha</button>
 </div>
 <div class="content">
 
@@ -188,6 +189,34 @@ select option{background:var(--bg2);}
       <input type="number" id="f-val" placeholder="Valor (R$) — opcional"/>
       <select id="f-cat"></select>
       <button class="btn primary full" onclick="addFixa()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- CAIXINHA -->
+<div id="tab-caixinha" class="section">
+  <div style="text-align:center;padding:1.5rem 0 1rem">
+    <div style="font-size:36px">🐷</div>
+    <div style="font-size:24px;font-weight:700;color:var(--green);margin-top:8px" id="caixinha-total">R$ 0,00</div>
+    <div style="font-size:11px;color:var(--text3);margin-top:4px">saldo acumulado</div>
+  </div>
+  <div class="item-list" id="caixinha-list"></div>
+  <div class="form-block" style="margin-top:1rem">
+    <h3>Guardar dinheiro</h3>
+    <div class="form-grid">
+      <input type="number" id="cx-val" placeholder="Valor (R$)" min="0" step="0.01"/>
+      <input type="date" id="cx-date"/>
+      <input type="text" id="cx-desc" placeholder="Descrição (opcional)" class="full"/>
+      <button class="btn success full" onclick="addCaixinha()">💰 Guardar</button>
+    </div>
+  </div>
+  <div class="form-block" style="margin-top:.5rem;border-color:#7f1d1d">
+    <h3 style="color:var(--text3)">Retirar da caixinha</h3>
+    <div class="form-grid">
+      <input type="number" id="cx-ret-val" placeholder="Valor (R$)" min="0" step="0.01"/>
+      <input type="date" id="cx-ret-date"/>
+      <input type="text" id="cx-ret-desc" placeholder="Motivo da retirada" class="full"/>
+      <button class="btn ghost full" onclick="retirarCaixinha()">↩ Retirar</button>
     </div>
   </div>
 </div>
@@ -364,29 +393,29 @@ const DEFAULT_CARTAO = [
   {id:'g_134', desc:'MERCADO VIEGAS', val:53.31, cat:'mercado', date:'2026-06-10', quem:'Mateus', fatura:'2026-06'},
   {id:'g_135', desc:'SHEIN  *SHEIN.COM', val:227.33, cat:'outros', date:'2026-06-10', quem:'Mateus', fatura:'2026-06'},
   {id:'g_136', desc:'MERCADOLIVRE*MERCADOLI', val:22.43, cat:'outros', date:'2026-06-10', quem:'Mateus', fatura:'2026-06'},
-  {id:'p_aruba_jul',    desc:'Parcela Aruba Comercio',    val:49.98,  cat:'outros',  date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
-  {id:'p_cref_jul',     desc:'Parcela CREF',              val:42.00,  cat:'saude',   date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
-  {id:'p_raphael_jul',  desc:'Parcela Raphael Germano',   val:177.50, cat:'saude',   date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
-  {id:'p_anuidade_jul', desc:'Anuidade C6 Carbon',        val:98.00,  cat:'outros',  date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
-  {id:'p_smiles_jul',   desc:'Parcela Smiles Club',       val:43.70,  cat:'outros',  date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
-  {id:'p_o2_jul',       desc:'Parcela PG O2 Power',       val:123.84, cat:'saude',   date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
-  {id:'p_trena_jul',    desc:'Parcela Trena Ferragens',   val:140.13, cat:'moradia', date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
-  {id:'p_alum_jul',     desc:'Parcela Shopee Alumínios',  val:106.02, cat:'moradia', date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
-  {id:'p_tijuca_jul',   desc:'Parcela Shopping Tijuca',   val:83.33,  cat:'lazer',   date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
-  {id:'p_moveis_jul',   desc:'Parcela ML Móveis',         val:52.61,  cat:'moradia', date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
-  {id:'p_ml_jul',       desc:'Parcela Mercado Livre',     val:54.90,  cat:'outros',  date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
-  {id:'p_aruba_ago',    desc:'Parcela Aruba Comercio',    val:49.98,  cat:'outros',  date:'2026-08-01', quem:'Aline', fatura:'2026-08'},
-  {id:'p_cref_ago',     desc:'Parcela CREF',              val:42.00,  cat:'saude',   date:'2026-08-01', quem:'Aline', fatura:'2026-08'},
-  {id:'p_smiles_ago',   desc:'Parcela Smiles Club',       val:43.70,  cat:'outros',  date:'2026-08-01', quem:'Aline', fatura:'2026-08'},
-  {id:'p_cref_set',     desc:'Parcela CREF',              val:42.00,  cat:'saude',   date:'2026-09-01', quem:'Aline', fatura:'2026-09'},
-  {id:'p_smiles_set',   desc:'Parcela Smiles Club',       val:43.70,  cat:'outros',  date:'2026-09-01', quem:'Aline', fatura:'2026-09'},
-  {id:'p_cref_out',     desc:'Parcela CREF',              val:42.00,  cat:'saude',   date:'2026-10-01', quem:'Aline', fatura:'2026-10'},
-  {id:'p_smiles_out',   desc:'Parcela Smiles Club',       val:43.70,  cat:'outros',  date:'2026-10-01', quem:'Aline', fatura:'2026-10'},
-  {id:'p_cref_nov',     desc:'Parcela CREF',              val:42.00,  cat:'saude',   date:'2026-11-01', quem:'Aline', fatura:'2026-11'},
-  {id:'p_smiles_nov',   desc:'Parcela Smiles Club',       val:43.70,  cat:'outros',  date:'2026-11-01', quem:'Aline', fatura:'2026-11'},
-  {id:'p_cref_dez',     desc:'Parcela CREF',              val:42.00,  cat:'saude',   date:'2026-12-01', quem:'Aline', fatura:'2026-12'},
-  {id:'p_smiles_dez',   desc:'Parcela Smiles Club',       val:43.70,  cat:'outros',  date:'2026-12-01', quem:'Aline', fatura:'2026-12'},
-  {id:'p_smiles_jan27', desc:'Parcela Smiles Club',       val:43.70,  cat:'outros',  date:'2027-01-01', quem:'Aline', fatura:'2027-01'}
+  {id:'p_aruba_jul',    desc:'Aruba Comercio (3/5)',       val:49.98,  cat:'outros',  date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
+  {id:'p_cref_jul',     desc:'CREF (3/10)',                val:42.00,  cat:'saude',   date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
+  {id:'p_raphael_jul',  desc:'Raphael Germano (3/4)',      val:177.50, cat:'saude',   date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
+  {id:'p_anuidade_jul', desc:'Anuidade C6 Carbon (3/12)', val:98.00,  cat:'outros',  date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
+  {id:'p_smiles_jul',   desc:'Smiles Club (4/12)',         val:43.70,  cat:'outros',  date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
+  {id:'p_o2_jul',       desc:'PG O2 Power (3/3)',          val:123.84, cat:'saude',   date:'2026-07-01', quem:'Aline', fatura:'2026-07'},
+  {id:'p_trena_jul',    desc:'Trena Ferragens (3/4)',      val:140.13, cat:'moradia', date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
+  {id:'p_alum_jul',     desc:'Shopee Alumínios (3/3)',     val:106.02, cat:'moradia', date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
+  {id:'p_tijuca_jul',   desc:'Shopping Tijuca (3/3)',      val:83.33,  cat:'lazer',   date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
+  {id:'p_moveis_jul',   desc:'ML Móveis (9/9)',            val:52.61,  cat:'moradia', date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
+  {id:'p_ml_jul',       desc:'Mercado Livre (9/10)',       val:54.90,  cat:'outros',  date:'2026-07-01', quem:'Mateus', fatura:'2026-07'},
+  {id:'p_aruba_ago',    desc:'Aruba Comercio (4/5)',       val:49.98,  cat:'outros',  date:'2026-08-01', quem:'Aline', fatura:'2026-08'},
+  {id:'p_cref_ago',     desc:'CREF (4/10)',                val:42.00,  cat:'saude',   date:'2026-08-01', quem:'Aline', fatura:'2026-08'},
+  {id:'p_smiles_ago',   desc:'Smiles Club (5/12)',         val:43.70,  cat:'outros',  date:'2026-08-01', quem:'Aline', fatura:'2026-08'},
+  {id:'p_cref_set',     desc:'CREF (5/10)',                val:42.00,  cat:'saude',   date:'2026-09-01', quem:'Aline', fatura:'2026-09'},
+  {id:'p_smiles_set',   desc:'Smiles Club (6/12)',         val:43.70,  cat:'outros',  date:'2026-09-01', quem:'Aline', fatura:'2026-09'},
+  {id:'p_cref_out',     desc:'CREF (6/10)',                val:42.00,  cat:'saude',   date:'2026-10-01', quem:'Aline', fatura:'2026-10'},
+  {id:'p_smiles_out',   desc:'Smiles Club (7/12)',         val:43.70,  cat:'outros',  date:'2026-10-01', quem:'Aline', fatura:'2026-10'},
+  {id:'p_cref_nov',     desc:'CREF (7/10)',                val:42.00,  cat:'saude',   date:'2026-11-01', quem:'Aline', fatura:'2026-11'},
+  {id:'p_smiles_nov',   desc:'Smiles Club (8/12)',         val:43.70,  cat:'outros',  date:'2026-11-01', quem:'Aline', fatura:'2026-11'},
+  {id:'p_cref_dez',     desc:'CREF (8/10)',                val:42.00,  cat:'saude',   date:'2026-12-01', quem:'Aline', fatura:'2026-12'},
+  {id:'p_smiles_dez',   desc:'Smiles Club (9/12)',         val:43.70,  cat:'outros',  date:'2026-12-01', quem:'Aline', fatura:'2026-12'},
+  {id:'p_smiles_jan27', desc:'Smiles Club (10/12)',        val:43.70,  cat:'outros',  date:'2027-01-01', quem:'Aline', fatura:'2027-01'}
 ];
 
 function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch{return d;}}
@@ -395,11 +424,16 @@ function saveLocal(){
   localStorage.setItem('cf_fixas',JSON.stringify(fixas));
   localStorage.setItem('cf_gastos',JSON.stringify(gastos));
   localStorage.setItem('cf_cartao',JSON.stringify(cartao));
+  localStorage.setItem('cf_caixinha',JSON.stringify(caixinha));
 }
 
 let rendas=load('cf_rendas',DEFAULT_RENDAS);
 let fixas=load('cf_fixas',DEFAULT_FIXAS);
-let gastos=load('cf_gastos',[]);
+const DEFAULT_GASTOS=[
+  {id:'fat_c6_jun26', desc:'Pagamento Fatura C6', val:14469.36, cat:'outros', date:'2026-06-10', quem:''}
+];
+let gastos=load('cf_gastos',DEFAULT_GASTOS);
+let caixinha=load('cf_caixinha',[]);
 let cartao=load('cf_cartao',DEFAULT_CARTAO);
 
 const getCat=id=>CATS.find(c=>c.id===id)||{label:'Outros',color:'#64748b'};
@@ -443,7 +477,7 @@ async function loadFromSheet(){
   }catch{toast('Usando dados locais','err');}
 }
 
-const TABNOMES=['visao','lancar','cartao','rendas','fixas','historico'];
+const TABNOMES=['visao','lancar','cartao','rendas','fixas','historico','caixinha'];
 function showTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABNOMES[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
@@ -453,6 +487,7 @@ function showTab(t){
   if(t==='rendas')renderRendas();
   if(t==='fixas')renderFixas();
   if(t==='historico')renderHistorico();
+  if(t==='caixinha')renderCaixinha();
 }
 
 function renderAll(){renderVisao();}
@@ -474,7 +509,8 @@ function renderVisao(){
   const totalFixo=fixas.reduce((s,f)=>s+(f.val||0),0);
   const totalConta=gastosM.reduce((s,g)=>s+g.val,0);
   const totalCartaoM=cartaoM.reduce((s,c)=>s+c.val,0);
-  const totalGasto=totalFixo+totalConta+totalCartaoM;
+  // Saldo: renda - fixas - gastos conta corrente (cartão não desconta até ser pago)
+  const totalGasto=totalFixo+totalConta;
   const saldo=totalRenda-totalGasto;
   const pct=totalRenda>0?Math.min(100,Math.round(totalGasto/totalRenda*100)):0;
   const cor=pct>90?'#ef4444':pct>70?'#f59e0b':'#22c55e';
@@ -482,8 +518,8 @@ function renderVisao(){
   document.getElementById('cards-visao').innerHTML=`
     <div class="card green"><label>Saldo livre</label><div class="v">${fmt(Math.max(0,saldo))}</div><div class="s">${totalRenda>0?Math.round(Math.max(0,saldo)/totalRenda*100):0}% da renda</div></div>
     <div class="card blue"><label>Renda</label><div class="v">${fmt(totalRenda)}</div></div>
-    <div class="card red"><label>Fixas + Conta</label><div class="v">${fmt(totalFixo+totalConta)}</div><div class="s">${gastosM.length} lançamentos</div></div>
-    <div class="card purple"><label>Cartão este mês</label><div class="v">${fmt(totalCartaoM)}</div><div class="s">${cartaoM.length} itens</div></div>
+    <div class="card red"><label>Gastos do mês</label><div class="v">${fmt(totalGasto)}</div><div class="s">fixas + débito/pix</div></div>
+    <div class="card purple"><label>Fatura ${mesFmt(fatAberta)}</label><div class="v">${fmt(totalCartaoM)}</div><div class="s">${cartaoM.length} itens previstos</div></div>
   `;
 
   document.getElementById('progress-visao').innerHTML=`
@@ -802,8 +838,55 @@ function exportCSV(){
   const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='financas_'+mes+'.csv';a.click();
 }
 
+// ── CAIXINHA ─────────────────────────────────────────────────
+function renderCaixinha(){
+  const total=caixinha.reduce((s,c)=>s+(c.tipo==='entrada'?c.val:-c.val),0);
+  document.getElementById('caixinha-total').textContent=fmt(Math.max(0,total));
+  document.getElementById('caixinha-total').style.color=total>=0?'var(--green)':'var(--red)';
+  const list=caixinha.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('caixinha-list').innerHTML=list.length
+    ?list.map(c=>{
+      const isEntrada=c.tipo==='entrada';
+      return`<div class="item">
+        <div class="dot" style="background:${isEntrada?'#22c55e':'#ef4444'}"></div>
+        <div class="info"><div class="name">${c.desc||( isEntrada?'Depósito':'Retirada')}</div><div class="meta">${new Date(c.date+'T12:00:00').toLocaleDateString('pt-BR')}</div></div>
+        <div class="amt" style="color:${isEntrada?'var(--green)':'var(--red)'}">${isEntrada?'+':'-'}${fmt(c.val)}</div>
+        <div class="item-actions"><button class="icon-btn" onclick="delCaixinha('${c.id}')">🗑</button></div>
+      </div>`;
+    }).join('')
+    :'<p class="empty">Nenhum depósito ainda</p>';
+}
+function addCaixinha(){
+  const val=parseFloat(document.getElementById('cx-val').value);
+  const date=document.getElementById('cx-date').value||nowDate();
+  const desc=document.getElementById('cx-desc').value.trim()||'Depósito';
+  if(isNaN(val)||val<=0){toast('Informe o valor','err');return;}
+  const item={id:uid(),val,date,desc,tipo:'entrada'};
+  caixinha.push(item);saveLocal();renderCaixinha();
+  syncSheet('addCaixinha',item);
+  toast('💰 Guardado na caixinha!');
+  document.getElementById('cx-val').value='';document.getElementById('cx-desc').value='';
+}
+function retirarCaixinha(){
+  const val=parseFloat(document.getElementById('cx-ret-val').value);
+  const date=document.getElementById('cx-ret-date').value||nowDate();
+  const desc=document.getElementById('cx-ret-desc').value.trim()||'Retirada';
+  if(isNaN(val)||val<=0){toast('Informe o valor','err');return;}
+  const total=caixinha.reduce((s,c)=>s+(c.tipo==='entrada'?c.val:-c.val),0);
+  if(val>total){toast('Saldo insuficiente na caixinha','err');return;}
+  const item={id:uid(),val,date,desc,tipo:'saida'};
+  caixinha.push(item);saveLocal();renderCaixinha();
+  syncSheet('addCaixinha',item);
+  toast('Retirada registrada');
+  document.getElementById('cx-ret-val').value='';document.getElementById('cx-ret-desc').value='';
+}
+function delCaixinha(id){
+  caixinha=caixinha.filter(c=>c.id!==id);saveLocal();renderCaixinha();
+  syncSheet('deleteCaixinha',{id});
+}
+
 // ── VERSÃO — incrementar aqui força reset do cache ───────────
-const APP_VERSION = '2.2';
+const APP_VERSION = '2.6';
 if(localStorage.getItem('cf_version') !== APP_VERSION){
   localStorage.removeItem('cf_rendas');
   localStorage.removeItem('cf_fixas');
@@ -815,6 +898,8 @@ if(localStorage.getItem('cf_version') !== APP_VERSION){
 // ── INIT ─────────────────────────────────────────────────────
 populateCatSelects();
 document.getElementById('m-date').value=nowDate();
+document.getElementById('cx-date').value=nowDate();
+document.getElementById('cx-ret-date').value=nowDate();
 renderVisao();
 if(SHEET_URL)loadFromSheet();
 </script>
