@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#0f172a" />
 <title>Finanças Casa</title>
-<link rel="manifest" href="manifest.json" />
 <style>
   :root {
     --bg: #0f172a;
@@ -34,13 +33,13 @@
   header h1 { font-size: 17px; font-weight: 600; color: var(--text); }
   header span { font-size: 12px; color: var(--text3); background: var(--bg2); padding: 3px 10px; border-radius: 99px; border: 1px solid var(--border); }
 
-  .tabs { display: flex; padding: 1rem 1.2rem 0; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  .tabs { display: flex; padding: 1rem 1.2rem 0; gap: 4px; overflow-x: auto; scrollbar-width: none; position: relative; z-index: 2; }
   .tabs::-webkit-scrollbar { display: none; }
   .tab { padding: 6px 14px; border: 1px solid var(--border); background: none; color: var(--text2); font-size: 13px; border-radius: 99px; cursor: pointer; white-space: nowrap; transition: all .15s; }
   .tab.active { background: var(--text); color: var(--bg); border-color: var(--text); font-weight: 500; }
 
-  .content { padding: 1rem 1.2rem; }
-  .section { display: none; }
+  .content { padding: 1rem 1.2rem; position: relative; z-index: 1; }
+  .section { display: none; position: relative; }
   .section.active { display: block; }
 
   .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 1rem; }
@@ -122,7 +121,7 @@
 
   .info-box { font-size: 12px; color: var(--text2); background: var(--blue-bg); border: 1px solid #1e3a6e; border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 1rem; line-height: 1.6; }
 
-  .status-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 16px; font-size: 13px; text-align: center; display: none; z-index: 99; }
+  .status-bar { position: fixed; bottom: 0; left: 0; right: 0; padding: 10px 16px; font-size: 13px; text-align: center; display: none; z-index: 50; pointer-events: none; }
   .status-bar.show { display: block; }
   .status-bar.ok { background: var(--green); color: #fff; }
   .status-bar.err { background: var(--red); color: #fff; }
@@ -241,7 +240,7 @@
 <script>
 // ── CONFIG ──────────────────────────────────────────────────
 // Cole aqui a URL do seu Apps Script depois de publicar
-const SHEET_URL = https://script.google.com/macros/s/AKfycbwFnTGz6q2Vp623H7M3SXfFtYZ0M74drxqaTcVH3H1UR98qTsioBZKdZAx7_ftmH73v/exec;
+const SHEET_URL = 'SUA_URL_AQUI';
 
 // ── CATEGORIAS ──────────────────────────────────────────────
 const CATS = [
@@ -635,8 +634,8 @@ function exportCSV(){
 // ── INIT ────────────────────────────────────────────────────
 populateCatSelects();
 document.getElementById('m-date').value=nowDate();
-loadFromSheet();
 renderVisao();
+if(SHEET_URL && SHEET_URL !== 'SUA_URL_AQUI') loadFromSheet();
 </script>
 </body>
 </html>
