@@ -399,10 +399,7 @@ function saveLocal(){
 
 let rendas=load('cf_rendas',DEFAULT_RENDAS);
 let fixas=load('cf_fixas',DEFAULT_FIXAS);
-const DEFAULT_GASTOS=[
-  {id:'fat_jun_26', desc:'Pagamento Fatura C6 Junho', val:14469.36, cat:'outros', date:'2026-06-10', quem:''}
-];
-let gastos=load('cf_gastos',DEFAULT_GASTOS);
+let gastos=load('cf_gastos',[]);
 let cartao=load('cf_cartao',DEFAULT_CARTAO);
 
 const getCat=id=>CATS.find(c=>c.id===id)||{label:'Outros',color:'#64748b'};
@@ -410,6 +407,8 @@ const fmt=v=>'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,max
 const nowDate=()=>new Date().toISOString().split('T')[0];
 const getMes=()=>new Date().toISOString().slice(0,7);
 const getNextMes=()=>{const d=new Date();d.setMonth(d.getMonth()+1);return d.toISOString().slice(0,7);};
+// Fatura aberta = sempre próximo mês
+const getFaturaAberta=getNextMes;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,5);
 const MESES_PT=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const mesFmt=ym=>{const[a,m]=ym.split('-');return MESES_PT[parseInt(m)-1]+'/'+a.slice(2);};
@@ -470,7 +469,7 @@ function populateCatSelects(){
 function renderVisao(){
   const mes=getMes();
   const gastosM=gastos.filter(g=>g.date.startsWith(mes));
-  const cartaoM=cartao.filter(c=>(c.fatura||c.date.slice(0,7))===mes);
+  const fatAberta=getFaturaAberta(); const cartaoM=cartao.filter(c=>(c.fatura||c.date.slice(0,7))===fatAberta);
   const totalRenda=rendas.reduce((s,r)=>s+r.val,0);
   const totalFixo=fixas.reduce((s,f)=>s+(f.val||0),0);
   const totalConta=gastosM.reduce((s,g)=>s+g.val,0);
@@ -508,7 +507,7 @@ function renderVisao(){
   if(cartaoM.length){
     const porCatC={};
     cartaoM.forEach(c=>{porCatC[c.cat]=(porCatC[c.cat]||0)+c.val;});
-    let cBars=`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px"><span>Fatura ${mesFmt(mes)}</span><span style="color:var(--purple);font-weight:600">${fmt(totalCartaoM)}</span></div>`;
+    let cBars=`<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-bottom:6px"><span>Fatura ${mesFmt(fatAberta)} (aberta)</span><span style="color:var(--purple);font-weight:600">${fmt(totalCartaoM)}</span></div>`;
     Object.entries(porCatC).sort((a,b)=>b[1]-a[1]).forEach(([cid,val])=>{
       const c=getCat(cid),pctC=totalCartaoM>0?Math.round(val/totalCartaoM*100):0;
       cBars+=`<div style="margin:5px 0"><div class="progress-labels"><span>${c.label}</span><span>${fmt(val)} · ${pctC}%</span></div><div class="progress"><div class="progress-fill" style="width:${pctC}%;background:${c.color}"></div></div></div>`;
@@ -533,19 +532,20 @@ function renderCartao(){
   Object.keys(porMes).sort((a,b)=>b.localeCompare(a)).forEach(m=>{
     const items=porMes[m];
     const total=items.reduce((s,c)=>s+c.val,0);
-    const isAtual=m===mes;
-    const isPast=m<mes;
+    const fatAberta=getFaturaAberta();
+    const isPast=m<fatAberta;
+    const isAberta=m===fatAberta;
     const badgeHtml=isPast
       ?'<span class="badge green">paga</span>'
-      :isAtual?'<span class="badge purple">aberta</span>'
+      :isAberta?'<span class="badge purple">aberta</span>'
       :'<span class="badge blue">prevista</span>';
 
     html+=`<div style="margin-bottom:6px">
-      <div class="acc-header ${isAtual?'open':''}" onclick="toggleAcc(this)">
+      <div class="acc-header ${isAberta?'open':''}" onclick="toggleAcc(this)">
         <span class="acc-label">Fatura ${mesFmt(m)} ${badgeHtml}</span>
         <span class="acc-right"><span class="acc-total">${fmt(total)}</span><span class="acc-arrow">▼</span></span>
       </div>
-      <div class="acc-body ${isAtual?'open':''}">
+      <div class="acc-body ${isAberta?'open':''}">
         ${renderCartaoItems(items)}
         <div class="total-line">${items.length} itens · Total: ${fmt(total)}</div>
       </div>
@@ -563,7 +563,7 @@ function renderCartao(){
         <input type="number" id="cc-val" placeholder="Valor (R$)"/>
         <select id="cc-cat"></select>
         <select id="cc-mes">
-          <option value="${mes}">Fatura ${mesFmt(mes)} (atual)</option>
+          <option value="${getFaturaAberta()}">Fatura ${mesFmt(getFaturaAberta())} (aberta)</option>
           <option value="${getNextMes()}">Fatura ${mesFmt(getNextMes())} (próxima)</option>
         </select>
         <input type="date" id="cc-date" class="full"/>
@@ -626,8 +626,8 @@ function addGastoManual(){
   const date=document.getElementById('m-date').value||nowDate();
   if(!desc||isNaN(val)||val<=0){toast('Preencha descrição e valor','err');return;}
   if(pag==='cartao'){
-    const fatMes=getNextMes();
-    const item={id:uid(),desc,val,cat,date:fatMes+'-01',quem:''};
+    const fatMes=getFaturaAberta();
+    const item={id:uid(),desc,val,cat,date:fatMes+'-01',quem:'',fatura:fatMes};
     cartao.push(item);saveLocal();syncSheet('addCartao',item);
     toast(`✓ Lançado na fatura de ${mesFmt(fatMes)}`);
   } else {
@@ -703,11 +703,11 @@ function renderHistorico(){
     const total=items.reduce((s,g)=>s+g.val,0);
     const isAtual=m===mes;
     html+=`<div style="margin-bottom:6px">
-      <div class="acc-header ${isAtual?'open':''}" onclick="toggleAcc(this)">
+      <div class="acc-header ${isAberta?'open':''}" onclick="toggleAcc(this)">
         <span class="acc-label">${mesFmt(m)}${isAtual?' <span class="badge purple">atual</span>':''}</span>
         <span class="acc-right"><span class="acc-total">${fmt(total)}</span><span class="acc-arrow">▼</span></span>
       </div>
-      <div class="acc-body ${isAtual?'open':''}">
+      <div class="acc-body ${isAberta?'open':''}">
         ${items.sort((a,b)=>b.date.localeCompare(a.date)).map(g=>{
           const c=getCat(g.cat);
           const d=new Date(g.date+'T12:00:00').toLocaleDateString('pt-BR');
@@ -762,8 +762,8 @@ function clearParsed(){parsedData=null;document.getElementById('parsedBox').styl
 function confirmVoz(){
   if(!parsedData||!parsedData.val){toast('Valor não identificado','err');return;}
   if(parsedData.noCartao){
-    const nextMes=getNextMes();
-    const item={id:uid(),desc:parsedData.desc,val:parsedData.val,cat:parsedData.cat,date:nextMes+'-01',quem:''};
+    const nextMes=getFaturaAberta();
+    const item={id:uid(),desc:parsedData.desc,val:parsedData.val,cat:parsedData.cat,date:nextMes+'-01',quem:'',fatura:nextMes};
     cartao.push(item);saveLocal();syncSheet('addCartao',item);
     toast(`✓ Lançado na fatura de ${mesFmt(nextMes)}`);
   } else {
@@ -803,7 +803,7 @@ function exportCSV(){
 }
 
 // ── VERSÃO — incrementar aqui força reset do cache ───────────
-const APP_VERSION = '2.1';
+const APP_VERSION = '2.2';
 if(localStorage.getItem('cf_version') !== APP_VERSION){
   localStorage.removeItem('cf_rendas');
   localStorage.removeItem('cf_fixas');
