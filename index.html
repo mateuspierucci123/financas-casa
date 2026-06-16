@@ -108,6 +108,7 @@ select option{background:var(--bg2);}
   <button class="tab" onclick="showTab('fixas')">Fixas</button>
   <button class="tab" onclick="showTab('historico')">Histórico</button>
   <button class="tab" onclick="showTab('caixinha')">🐷 Caixinha</button>
+  <button class="tab" onclick="showTab('regras')">🧠 Regras</button>
 </div>
 <div class="content">
 
@@ -132,7 +133,9 @@ select option{background:var(--bg2);}
     <p class="transcript" id="transcript"></p>
     <div class="parsed-box" id="parsedBox">
       <div class="parsed-row"><span>Descrição</span><strong id="p-desc"></strong></div>
-      <div class="parsed-row"><span>Categoria</span><strong id="p-cat"></strong></div>
+      <div class="parsed-row"><span>Categoria</span>
+        <select id="p-cat-sel" style="font-size:12px;padding:4px 8px;background:var(--bg2);color:var(--text);border:1px solid var(--border);border-radius:6px;max-width:160px"></select>
+      </div>
       <div class="parsed-row"><span>Valor</span><strong id="p-val"></strong></div>
       <div class="parsed-row"><span>Pagamento</span><strong id="p-pag"></strong></div>
       <p class="parsed-tip" id="p-tip"></p>
@@ -232,6 +235,21 @@ select option{background:var(--bg2);}
 </div>
 
 </div>
+<!-- REGRAS DE CATEGORIZAÇÃO -->
+<div id="tab-regras" class="section">
+  <div class="info-box">🧠 Ensine o app a categorizar gastos do cartão automaticamente. Quando o nome aparecer na fatura, ele já sabe onde colocar.</div>
+  <div id="regras-list"></div>
+  <div class="form-block" style="margin-top:1rem">
+    <h3>Adicionar regra</h3>
+    <div class="form-grid">
+      <input type="text" id="rg-termo" placeholder='Ex: "KONSERTUNES", "UBER", "ASSAI"' class="full"/>
+      <select id="rg-cat"></select>
+      <input type="text" id="rg-desc" placeholder="Descrição amigável (opcional)"/>
+      <button class="btn primary full" onclick="addRegra()">Salvar regra</button>
+    </div>
+  </div>
+</div>
+
 <div class="status-bar" id="statusBar"></div>
 <script>
 const SHEET_URL='https://script.google.com/macros/s/AKfycbwFnTGz6q2Vp623H7M3SXfFtYZ0M74drxqaTcVH3H1UR98qTsioBZKdZAx7_ftmH73v/exec';
@@ -261,8 +279,6 @@ const DEFAULT_FIXAS=[
   {id:'f3',desc:'Luz',val:400,cat:'energia'},
   {id:'f4',desc:'Gás',val:120,cat:'gas'},
   {id:'f5',desc:'Faxineira',val:500,cat:'servicos'},
-  {id:'f6',desc:'Seguro do carro',val:null,cat:'seguro'},
-  {id:'f7',desc:'Seguro do celular',val:null,cat:'seguro'},
 ];
 
 const DEFAULT_CARTAO = [
@@ -428,6 +444,7 @@ function saveLocal(){
   localStorage.setItem('cf_gastos',JSON.stringify(gastos));
   localStorage.setItem('cf_cartao',JSON.stringify(cartao));
   localStorage.setItem('cf_caixinha',JSON.stringify(caixinha));
+  localStorage.setItem('cf_regras',JSON.stringify(regras));
 }
 
 let rendas=load('cf_rendas',DEFAULT_RENDAS);
@@ -437,6 +454,7 @@ const DEFAULT_GASTOS=[
 ];
 let gastos=load('cf_gastos',DEFAULT_GASTOS);
 let caixinha=load('cf_caixinha',[]);
+let regras=load('cf_regras',[]);
 let cartao=load('cf_cartao',DEFAULT_CARTAO);
 
 const getCat=id=>CATS.find(c=>c.id===id)||{label:'Outros',color:'#64748b'};
@@ -480,7 +498,7 @@ async function loadFromSheet(){
   }catch{toast('Usando dados locais','err');}
 }
 
-const TABNOMES=['visao','lancar','cartao','rendas','fixas','historico','caixinha'];
+const TABNOMES=['visao','lancar','cartao','rendas','fixas','historico','caixinha','regras'];
 function showTab(t){
   document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',TABNOMES[i]===t));
   document.querySelectorAll('.section').forEach(el=>el.classList.remove('active'));
@@ -491,6 +509,7 @@ function showTab(t){
   if(t==='fixas')renderFixas();
   if(t==='historico')renderHistorico();
   if(t==='caixinha')renderCaixinha();
+  if(t==='regras')renderRegras();
 }
 
 function renderAll(){renderVisao();}
@@ -834,8 +853,12 @@ function parseTranscript(text){
   const val=nm?parseFloat(nm[1].replace(',','.')):null;
   const noCartao=/cart[aã]o|cr[eé]dito|parcel/i.test(lower);
   let cat='outros';
-  if(/mercado|supermercado|feira/i.test(lower))cat='mercado';
-  else if(/gasolina|combustível|uber|táxi|onibus|metrô/i.test(lower))cat='transporte';
+  // Primeiro verifica regras aprendidas
+  const regraMatch=regras.find(r=>lower.includes(r.termo.toLowerCase()));
+  if(regraMatch){ cat=regraMatch.cat; }
+  else if(/mercado|supermercado|feira/i.test(lower))cat='mercado';
+  else if(/gasolina|combustível|combustivel|posto/i.test(lower))cat='transporte';
+  else if(/uber|táxi|taxi|onibus|metrô/i.test(lower))cat='transporte';
   else if(/farmácia|remédio|médico|consulta/i.test(lower))cat='saude';
   else if(/restaurante|lanche|pizza|almoço|jantar|café/i.test(lower))cat='restaurante';
   else if(/escola|colégio|curso/i.test(lower))cat='educacao';
@@ -853,7 +876,11 @@ function parseTranscript(text){
 function showParsed(data){
   parsedData=data;
   document.getElementById('p-desc').textContent=data.desc;
-  document.getElementById('p-cat').textContent=getCat(data.cat).label;
+  // Popula select de categoria
+  const sel=document.getElementById('p-cat-sel');
+  sel.innerHTML='';
+  CATS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.label;sel.appendChild(o);});
+  sel.value=data.cat;
   document.getElementById('p-val').textContent=data.val?fmt(data.val):'não identificado';
   const nextMes=getNextMes();
   document.getElementById('p-pag').textContent=data.noCartao?`💳 Cartão → fatura ${mesFmt(nextMes)}`:'🏦 Débito / Pix (conta)';
@@ -868,11 +895,11 @@ function confirmVoz(){
   if(!parsedData||!parsedData.val){toast('Valor não identificado','err');return;}
   if(parsedData.noCartao){
     const nextMes=getFaturaAberta();
-    const item={id:uid(),desc:parsedData.desc,val:parsedData.val,cat:parsedData.cat,date:nextMes+'-01',quem:'',fatura:nextMes};
+    const item={id:uid(),desc:parsedData.desc,val:parsedData.val,cat:document.getElementById('p-cat-sel').value||parsedData.cat,date:nextMes+'-01',quem:'',fatura:nextMes};
     cartao.push(item);saveLocal();syncSheet('addCartao',item);
     toast(`✓ Lançado na fatura de ${mesFmt(nextMes)}`);
   } else {
-    addGasto({id:uid(),desc:parsedData.desc,val:parsedData.val,cat:parsedData.cat,date:nowDate(),quem:''});
+    addGasto({id:uid(),desc:parsedData.desc,val:parsedData.val,cat:document.getElementById('p-cat-sel').value||parsedData.cat,date:nowDate(),quem:''});
     toast('✓ Gasto registrado!');
   }
   clearParsed();
@@ -959,8 +986,59 @@ function delCaixinha(id){
   syncSheet('deleteCaixinha',{id});
 }
 
+// ── REGRAS DE CATEGORIZAÇÃO ─────────────────────────────────
+function renderRegras(){
+  const sel=document.getElementById('rg-cat');
+  if(sel&&sel.options.length<=1){
+    CATS.forEach(c=>{const o=document.createElement('option');o.value=c.id;o.textContent=c.label;sel.appendChild(o);});
+  }
+  document.getElementById('regras-list').innerHTML=regras.length
+    ?`<div class="item-list">${regras.map(r=>{
+        const c=getCat(r.cat);
+        return`<div class="item">
+          <div class="dot" style="background:${c.color}"></div>
+          <div class="info">
+            <div class="name" style="font-family:monospace;font-size:12px">"${r.termo}"</div>
+            <div class="meta">${r.desc||''}  →  ${c.label}</div>
+          </div>
+          <div class="item-actions">
+            <button class="icon-btn" onclick="delRegra('${r.id}')">🗑</button>
+          </div>
+        </div>`;
+      }).join('')}</div>`
+    :'<p class="empty">Nenhuma regra cadastrada ainda.<br>Quando um gasto do cartão não for reconhecido, adicione aqui.</p>';
+}
+
+function addRegra(){
+  const termo=document.getElementById('rg-termo').value.trim();
+  const cat=document.getElementById('rg-cat').value||'outros';
+  const desc=document.getElementById('rg-desc').value.trim();
+  if(!termo){toast('Informe o termo de busca','err');return;}
+  // Verifica duplicata
+  if(regras.find(r=>r.termo.toLowerCase()===termo.toLowerCase())){
+    toast('Já existe uma regra para esse termo','err');return;
+  }
+  const item={id:uid(),termo,cat,desc};
+  regras.push(item);saveLocal();renderRegras();
+  syncSheet('addRegra',item);
+  toast('Regra salva!');
+  document.getElementById('rg-termo').value='';
+  document.getElementById('rg-desc').value='';
+}
+
+function delRegra(id){
+  regras=regras.filter(r=>r.id!==id);saveLocal();renderRegras();
+  syncSheet('deleteRegra',{id});
+}
+
+function applyRegras(desc){
+  const lower=desc.toLowerCase();
+  const match=regras.find(r=>lower.includes(r.termo.toLowerCase()));
+  return match?match.cat:null;
+}
+
 // ── VERSÃO — incrementar aqui força reset do cache ───────────
-const APP_VERSION = '2.6';
+const APP_VERSION = '2.8';
 if(localStorage.getItem('cf_version') !== APP_VERSION){
   localStorage.removeItem('cf_rendas');
   localStorage.removeItem('cf_fixas');
