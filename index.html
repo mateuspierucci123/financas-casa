@@ -153,7 +153,8 @@ select option{background:var(--bg2);}
       <input type="number" id="m-val" placeholder="Valor (R$)" min="0" step="0.01"/>
       <select id="m-cat"></select>
       <select id="m-pag">
-        <option value="conta">Débito / Pix (sai da conta)</option>
+        <option value="conta">Débito / Pix</option>
+        <option value="dinheiro">Dinheiro</option>
         <option value="cartao">Cartão de crédito</option>
       </select>
       <input type="date" id="m-date" class="full"/>
@@ -278,7 +279,6 @@ const DEFAULT_FIXAS=[
   {id:'f2',desc:'Condomínio',val:750,cat:'moradia'},
   {id:'f3',desc:'Luz',val:400,cat:'energia'},
   {id:'f4',desc:'Gás',val:120,cat:'gas'},
-  {id:'f5',desc:'Faxineira',val:500,cat:'servicos'},
 ];
 
 const DEFAULT_CARTAO = [
@@ -1038,7 +1038,7 @@ function applyRegras(desc){
 }
 
 // ── VERSÃO — incrementar aqui força reset do cache ───────────
-const APP_VERSION = '2.8';
+const APP_VERSION = '2.9';
 if(localStorage.getItem('cf_version') !== APP_VERSION){
   localStorage.removeItem('cf_rendas');
   localStorage.removeItem('cf_fixas');
